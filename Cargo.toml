@@ -1,0 +1,21 @@
+[package]
+name = "dedup"
+version = "0.1.0"
+authors = ["Douman <douman@gmx.se>"]
+description = "Removes duplicate lines from file"
+edition = "2018"
+license = "BSL-1.0"
+repository = "https://github.com/DoumanAsh/dedup"
+include = [
+    "**/*.rs",
+    "Cargo.toml",
+    "README.md"
+]
+
+[dependencies]
+c-ffi = { version = "0.3", default-features = false }
+
+[profile.release]
+lto = true
+opt-level = "z"
+codegen-units = 1

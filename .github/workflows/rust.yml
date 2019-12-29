@@ -1,0 +1,69 @@
+name: Rust
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-18.04]
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Install Rust Unix
+      if: runner.os != 'Windows'
+      run: |
+        if rustup --version >/dev/null 2>&1; then
+            rustup update
+        else
+             curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
+             echo ::add-path::$HOME/.cargo/bin
+        fi
+    - name: Install Rust Windows
+      if: runner.os == 'Windows'
+      run: |
+        if (Get-Command "rustup" -ErrorAction SilentlyContinue) {
+            rustup update
+        } else {
+            Invoke-WebRequest https://static.rust-lang.org/rustup/dist/i686-pc-windows-gnu/rustup-init.exe -OutFile rustup-init.exe
+            ./rustup-init.exe -y --profile minimal --default-toolchain stable
+            echo ::add-path::%USERPROFILE%\.cargo\bin
+        }
+
+    - name: Rust version
+      run: |
+        cargo --version
+        rustc --version
+
+    - name: Check
+      run: cargo check
+
+    - name: Build Release Unix
+      if: startsWith(github.ref, 'refs/tags/') && runner.os != 'Windows'
+      run: RUSTFLAGS='-C link-arg=-s' cargo build --release
+
+    - name: Build Release Windows
+      if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Windows'
+      run: cargo build --release
+
+    - name: Archive Unix
+      if: startsWith(github.ref, 'refs/tags/') && runner.os != 'Windows'
+      run: |
+        zip ${{runner.os}}.zip -j target/release/dedup
+
+    - name: Archive Windows
+      if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Windows'
+      run: |
+        Compress-Archive -Path target/release/dedup.exe -DestinationPath ${{runner.os}}.zip
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: ${{runner.os}}.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
